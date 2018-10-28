@@ -367,7 +367,7 @@ BufferLocation ZepBuffer::ChangeWordMotion(BufferLocation start, uint32_t search
     return start;
 }
 
-void ZepBuffer::ProcessInput(const std::string& text)
+void ZepBuffer::ProcessText(const std::string& text)
 {
     // Inform clients we are about to change the buffer
     GetEditor().Broadcast(std::make_shared<BufferMessage>(this, BufferMessageType::PreBufferChange, 0, BufferLocation(m_gapBuffer.size() - 1)));
@@ -377,14 +377,13 @@ void ZepBuffer::ProcessInput(const std::string& text)
 
     m_bStrippedCR = false;
 
-    if (text.empty())
+    // Update the gap buffer with the text
+    // We remove \r, we only care about \n
+    // This is slow, but won't matter on average source files.
+    // Eventually I will properly handle the \r\n combinations and do the right thing
+    // instead of converting to \n and optionally back to \r\n
+    if (!text.empty())
     {
-        m_gapBuffer.push_back(0);
-    }
-    else
-    {
-        // Update the gap buffer with the text
-        // We remove \r, we only care about \n
         for (auto& ch : text)
         {
             if (ch == '\r')
@@ -409,12 +408,10 @@ void ZepBuffer::ProcessInput(const std::string& text)
         }
     }
 
-    if (m_gapBuffer[m_gapBuffer.size() - 1] != 0)
+    if (m_lineEnds.empty())
     {
-        m_gapBuffer.push_back(0);
+        m_lineEnds.push_back(0);
     }
-
-    m_lineEnds.push_back(long(m_gapBuffer.size()));
 }
 
 BufferLocation ZepBuffer::Clamp(BufferLocation in) const
@@ -499,7 +496,7 @@ void ZepBuffer::SetText(const std::string& text)
             BufferLocation{ long(m_gapBuffer.size()) }));
     }
 
-    ProcessInput(text);
+    ProcessText(text);
 
     GetEditor().Broadcast(std::make_shared<BufferMessage>(this,
         BufferMessageType::TextAdded,
@@ -636,12 +633,16 @@ bool ZepBuffer::Insert(const BufferLocation& startOffset, const std::string& str
     GetEditor().Broadcast(std::make_shared<BufferMessage>(this, BufferMessageType::PreBufferChange, startOffset, changeRange));
 
     // abcdef\r\nabc<insert>dfdf\r\n
+    // TODO: What was I doing here?
+    // I'm trying to find the endline for the insert point
     auto itrLine = std::lower_bound(m_lineEnds.begin(), m_lineEnds.end(), startOffset);
-    ;
-    if (itrLine != m_lineEnds.end() && *itrLine <= startOffset)
+    /*
+    if (itrLine != m_lineEnds.end() &&
+        *itrLine < startOffset)
     {
         itrLine++;
     }
+    */
 
     auto itrEnd = str.end();
     auto itrBegin = str.begin();
@@ -728,7 +729,6 @@ bool ZepBuffer::Delete(const BufferLocation& startOffset, const BufferLocation& 
     }
 
     m_gapBuffer.erase(m_gapBuffer.begin() + startOffset, m_gapBuffer.begin() + endOffset);
-    assert(m_gapBuffer.size() > 0 && m_gapBuffer[m_gapBuffer.size() - 1] == 0);
 
     // This is the range we deleted (not valid any more in the buffer)
     GetEditor().Broadcast(std::make_shared<BufferMessage>(this, BufferMessageType::TextDeleted, startOffset, endOffset, cursorAfter));

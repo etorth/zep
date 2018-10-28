@@ -12,7 +12,7 @@
 
 #include "utils/stringutils.h"
 
-// A 'window' is like a vim window; i.e. a region inside a tab
+// A 'window' is like a vim buffer display; i.e. a region inside a tab - perhaps one of many organised into rects
 namespace Zep
 {
 
@@ -344,9 +344,6 @@ void ZepWindow::UpdateVisibleLineData()
         lineInfo.columnOffsets.x = columnOffsets.x;
         lineInfo.columnOffsets.y = columnOffsets.x;
 
-        bool inEndLine = false;
-        bool finishedLines = false;
-
         const auto& textBuffer = m_pBuffer->GetText();
 
         // Walk from the start of the line to the end of the line (in buffer chars)
@@ -356,18 +353,13 @@ void ZepWindow::UpdateVisibleLineData()
         {
             const utf8* pCh = &textBuffer[ch];
 
-            // Shown only one char for end of line
-            if (*pCh == '\n' ||
-                *pCh == 0)
-            {
-                inEndLine = true;
-            }
-            else
+            // Not at the end, keep going with non CR chars
+            if (*pCh != '\n' && *pCh != 0)
             {
                 lineInfo.lastNonCROffset = std::max(ch, 0l);
             }
 
-            // TODO: Central UTF-8 helpers
+            // TODO: Central UTF-8 helpers.  This is mostly broken; zep doesn't do utf8 yet
 #define UTF8_CHAR_LEN( byte ) (( 0xE5000000 >> (( byte >> 3 ) & 0x1e )) & 3 ) + 1
             const utf8* pEnd = pCh + UTF8_CHAR_LEN(*pCh);
 
@@ -377,7 +369,8 @@ void ZepWindow::UpdateVisibleLineData()
             // need to know about the font...
             auto textSize = m_pDisplay->GetTextSize(pCh, pEnd);
 
-            lineInfo.columnOffsets.y = ch;
+            // The whole column ends after this ch
+            lineInfo.columnOffsets.y = ch + 1;
 
             // Wrap
             if (wrap)
@@ -388,7 +381,7 @@ void ZepWindow::UpdateVisibleLineData()
                     windowLines.push_back(lineInfo);
 
                     // Now jump to the next 'screen line' for the rest of this 'buffer line'
-                    lineInfo.columnOffsets = NVec2i(ch, ch);
+                    lineInfo.columnOffsets = NVec2i(ch, ch + 1);
                     lineInfo.lastNonCROffset = 0;
                     screenPosX = m_textRegion.topLeftPx.x;
                 }
@@ -398,10 +391,6 @@ void ZepWindow::UpdateVisibleLineData()
                 }
             }
         }
-
-        // We walked all the actual chars, and stopped at 1< than column.y
-        // So back to the correct line end offset here
-        lineInfo.columnOffsets.y++;
 
         // Remember this window line, and if not yet found all visible, record the last limit
         windowLines.push_back(lineInfo);
@@ -456,7 +445,7 @@ bool ZepWindow::DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const
         std::string strNum;
         if (displayMode == DisplayMode::Vim)
         {
-            strNum = std::to_string(abs(lineInfo.bufferLineNumber - cursorBufferLine));
+            strNum = std::to_string(std::abs(lineInfo.bufferLineNumber - cursorBufferLine));
         }
         else
         {
@@ -494,11 +483,20 @@ bool ZepWindow::DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const
     bool foundCursor = false;
 
     // Walk from the start of the line to the end of the line (in buffer chars)
-    for (auto ch = lineInfo.columnOffsets.x; ch < lineInfo.columnOffsets.y; ch++)
+    for (auto ch = lineInfo.columnOffsets.x; ch <= lineInfo.columnOffsets.y; ch++)
     {
         auto pSyntax = m_pBuffer->GetSyntax();
         auto col = pSyntax != nullptr ? Theme::Instance().GetColor(pSyntax->GetSyntaxAt(ch)) : 0xFFFFFFFF;
-        auto* pCh = &m_pBuffer->GetText()[ch];
+        const utf8* pCh = nullptr;
+        if (ch < m_pBuffer->GetText().size())
+        {
+            pCh = &m_pBuffer->GetText()[ch];
+        }
+        else
+        {
+            pCh = (const utf8*)&blankSpace;
+        }
+
         auto bufferLocation = ch;
 
         // Visible white space

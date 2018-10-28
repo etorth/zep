@@ -35,7 +35,7 @@ public:
     virtual void UpdateSyntax();
     virtual void Interrupt();
 
-    virtual long GetProcessedChar() const { return m_processedChar; }
+    virtual long GetProcessedChar() const { return m_nextChar; }
     virtual const std::vector<uint32_t>& GetText() const { return m_syntax; }
     virtual void Notify(std::shared_ptr<ZepMessage> payload) override;
 
@@ -47,8 +47,8 @@ protected:
     std::vector<CommentEntry> m_commentEntries;
     std::vector<uint32_t> m_syntax;       // TODO: Use gap buffer - not sure why this is a vector?
     std::future<void> m_syntaxResult;
-    std::atomic<long> m_processedChar = {0};
-    std::atomic<long> m_targetChar = { 0 };
+    std::atomic<long> m_nextChar = {0};     // The next char to analyse
+    std::atomic<long> m_targetChar = {0};
     std::vector<uint32_t> m_multiCommentStarts;
     std::vector<uint32_t> m_multiCommentEnds;
     std::set<std::string> keywords;
