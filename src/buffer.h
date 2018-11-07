@@ -69,7 +69,7 @@ public:
 
     BufferLocation GetLinePos(BufferLocation bufferLocation, LineLocation lineLocation) const;
     bool GetLineOffsets(const long line, long& charStart, long& charEnd) const;
-    BufferLocation Clamp(BufferLocation location) const;
+    BufferLocation ClampInsideBuffer(BufferLocation location) const;
 
     ThreadPool& GetThreadPool() { return m_threadPool; }
 
@@ -97,6 +97,8 @@ public:
     BufferLocation LocationFromOffsetByChars(const BufferLocation& location, long offset) const;
     BufferLocation EndLocation() const;
 
+    void UpdateLineEnds() const;
+
     const GapBuffer<utf8>& GetText() const { return m_gapBuffer; }
     const std::vector<long> GetLineEnds() const { return m_lineEnds; }
     bool IsDirty() const { return m_dirty; }
@@ -123,7 +125,11 @@ private:
     bool m_readOnly = false;                   // Is the text read only?
     bool m_viewOnly = false;                   // Is the text not editable, only view?
     GapBuffer<utf8> m_gapBuffer;               // Storage for the text - a gap buffer for efficiency
-    std::vector<long> m_lineEnds;              // End of each line (one beyond the last char)
+   
+    // Temporary
+    mutable bool m_updateLineEnds = true;
+    mutable std::vector<long> m_lineEnds;              // End of each line (one beyond the last char)
+
     ThreadPool m_threadPool;
     uint32_t m_flags;
     std::shared_ptr<ZepSyntax> m_spSyntax;

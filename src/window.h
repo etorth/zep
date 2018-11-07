@@ -24,16 +24,6 @@ struct LineInfo
     long screenLineNumber = 0;                   // Line on the screen
 
     long Length() const { return columnOffsets.y - columnOffsets.x; }
-    bool BufferCursorInside(long offset) const 
-    {
-        if (columnOffsets.x == columnOffsets.y)
-        {
-            // Empty line with no CR!  In which case the cursor can be 
-            // on it, without actually covering an active character
-            return offset == columnOffsets.x;
-        }
-        return offset >= columnOffsets.x && offset < columnOffsets.y; 
-    }
 };
 
 enum class CursorMode
@@ -162,7 +152,7 @@ public:
     ZepDisplay* m_pDisplay;
     ZepTabWindow& m_window;
 
-    uint32_t m_windowFlags = WindowFlags::ShowWhiteSpace;
+    uint32_t m_windowFlags = WindowFlags::ShowWhiteSpace | WindowFlags::ShowCR;
 
     long m_maxDisplayLines = 0;
     float m_defaultLineSize = 0;
