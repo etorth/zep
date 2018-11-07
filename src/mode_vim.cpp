@@ -918,7 +918,7 @@ bool ZepMode_Vim::GetCommand(CommandContext& context)
                 // Copy the whole line, including the CR
                 context.registers.push('0');
                 context.beginRange = context.buffer.GetLinePos(context.bufferCursor, LineLocation::LineBegin);
-                context.endRange = context.buffer.GetLinePos(context.bufferCursor, LineLocation::BeyondLineEnd) + 1;
+                context.endRange = context.buffer.GetLinePos(context.bufferCursor, LineLocation::BeyondLineEnd);
                 context.op = CommandOperation::CopyLines;
             }
         }
@@ -1094,6 +1094,7 @@ bool ZepMode_Vim::GetCommand(CommandContext& context)
         context.commandResult.spCommand = std::static_pointer_cast<ZepCommand>(cmd);
         return true;
     }
+    // Register paste
     else if (context.op == CommandOperation::Insert && !context.pRegister->text.empty())
     {
         auto cmd = std::make_shared<ZepCommand_Insert>(context.buffer,

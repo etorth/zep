@@ -19,7 +19,7 @@ ZepSyntax::~ZepSyntax()
 
 uint32_t ZepSyntax::GetSyntaxAt(long offset) const
 {
-    if (m_processedChar < offset ||
+    if (m_nextChar <= offset ||
         m_syntax.size() <= offset)
     {
         return SyntaxType::Normal;
@@ -45,15 +45,15 @@ void ZepSyntax::QueueUpdateSyntax(BufferLocation startLocation, BufferLocation e
     // ensure that multiple calls to restart the thread keep track of where to start
     // This means a small edit at the end of a big file, followed by a small edit at the top
     // is the worst case scenario, because 
-    m_processedChar = std::min(startLocation, long(m_processedChar));
+    m_nextChar = std::min(startLocation, long(m_nextChar));
+    m_nextChar = std::min(long(m_nextChar), long(m_buffer.GetText().size()));
+
     m_targetChar = std::max(endLocation, long(m_targetChar));
+    m_targetChar = std::min(long(m_targetChar), long(m_buffer.GetText().size()));
 
     // Make sure the syntax buffer is big enough - adding normal syntax to the end
     // This may also 'chop'
     m_syntax.resize(m_buffer.GetText().size(), SyntaxType::Normal);
-
-    m_processedChar = std::min(long(m_processedChar), long(m_buffer.GetText().size() - 1));
-    m_targetChar = std::min(long(m_targetChar), long(m_buffer.GetText().size() - 1));
 
     // Have the thread update the syntax in the new region
     if (GetEditor().GetFlags() & ZepEditorFlags::DisableThreads)
@@ -109,10 +109,11 @@ void ZepSyntax::Notify(std::shared_ptr<ZepMessage> spMsg)
 void ZepSyntax::UpdateSyntax()
 {
     auto& buffer = m_buffer.GetText();
-    auto itrCurrent = buffer.begin() + m_processedChar;
+
+    auto itrCurrent = buffer.begin() + m_nextChar;
     auto itrEnd = buffer.begin() + m_targetChar;
 
-    assert(std::distance(itrCurrent, itrEnd) < int(m_syntax.size()));
+    assert(std::distance(itrCurrent, itrEnd) <= int(m_syntax.size()));
 
     std::string delim(" \t.\n;(){}=");
     std::string lineEnd("\n");
@@ -150,7 +151,7 @@ void ZepSyntax::UpdateSyntax()
     };
 
     // Update start location
-    m_processedChar = long(itrCurrent - buffer.begin());
+    m_nextChar = long(itrCurrent - buffer.begin());
 
     // Walk the buffer updating information about syntax coloring
     while (itrCurrent != itrEnd)
@@ -214,7 +215,7 @@ void ZepSyntax::UpdateSyntax()
     // If we got here, we sucessfully completed
     // Reset the target to the beginning
     m_targetChar = long(0);
-    m_processedChar = long(buffer.size() - 1);
+    m_nextChar = long(buffer.size());
 }
 
 } // Zep

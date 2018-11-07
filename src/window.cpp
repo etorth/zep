@@ -12,7 +12,7 @@
 
 #include "utils/stringutils.h"
 
-// A 'window' is like a vim window; i.e. a region inside a tab
+// A 'window' is like a vim buffer display; i.e. a region inside a tab - perhaps one of many organised into rects
 namespace Zep
 {
 
@@ -115,6 +115,11 @@ NVec2i ZepWindow::BufferToDisplay(const BufferLocation& loc)
         lineCount++;
     }
 
+    if (lineCount >= windowLines.size())
+    {
+        ret.x = windowLines[windowLines.size() - 1].columnOffsets.y;
+    }
+
     return ret;
 }
 
@@ -147,7 +152,7 @@ void ZepWindow::MoveCursorInsideLine(LineLocation location)
 
 void ZepWindow::MoveCursorTo(BufferLocation location)
 {
-    m_bufferCursor = m_pBuffer->Clamp(location);
+    m_bufferCursor = std::max(BufferLocation{ 0 }, location);
     m_pendingLineUpdate = true;
    
     auto displayCursor = BufferToDisplay();
@@ -344,9 +349,6 @@ void ZepWindow::UpdateVisibleLineData()
         lineInfo.columnOffsets.x = columnOffsets.x;
         lineInfo.columnOffsets.y = columnOffsets.x;
 
-        bool inEndLine = false;
-        bool finishedLines = false;
-
         const auto& textBuffer = m_pBuffer->GetText();
 
         // Walk from the start of the line to the end of the line (in buffer chars)
@@ -356,18 +358,13 @@ void ZepWindow::UpdateVisibleLineData()
         {
             const utf8* pCh = &textBuffer[ch];
 
-            // Shown only one char for end of line
-            if (*pCh == '\n' ||
-                *pCh == 0)
-            {
-                inEndLine = true;
-            }
-            else
+            // Not at the end, keep going with non CR chars
+            if (*pCh != '\n' && *pCh != 0)
             {
                 lineInfo.lastNonCROffset = std::max(ch, 0l);
             }
 
-            // TODO: Central UTF-8 helpers
+            // TODO: Central UTF-8 helpers.  This is mostly broken; zep doesn't do utf8 yet
 #define UTF8_CHAR_LEN( byte ) (( 0xE5000000 >> (( byte >> 3 ) & 0x1e )) & 3 ) + 1
             const utf8* pEnd = pCh + UTF8_CHAR_LEN(*pCh);
 
@@ -377,7 +374,8 @@ void ZepWindow::UpdateVisibleLineData()
             // need to know about the font...
             auto textSize = m_pDisplay->GetTextSize(pCh, pEnd);
 
-            lineInfo.columnOffsets.y = ch;
+            // The whole column ends after this ch
+            lineInfo.columnOffsets.y = ch + 1;
 
             // Wrap
             if (wrap)
@@ -388,7 +386,7 @@ void ZepWindow::UpdateVisibleLineData()
                     windowLines.push_back(lineInfo);
 
                     // Now jump to the next 'screen line' for the rest of this 'buffer line'
-                    lineInfo.columnOffsets = NVec2i(ch, ch);
+                    lineInfo.columnOffsets = NVec2i(ch, ch + 1);
                     lineInfo.lastNonCROffset = 0;
                     screenPosX = m_textRegion.topLeftPx.x;
                 }
@@ -398,10 +396,6 @@ void ZepWindow::UpdateVisibleLineData()
                 }
             }
         }
-
-        // We walked all the actual chars, and stopped at 1< than column.y
-        // So back to the correct line end offset here
-        lineInfo.columnOffsets.y++;
 
         // Remember this window line, and if not yet found all visible, record the last limit
         windowLines.push_back(lineInfo);
@@ -443,8 +437,25 @@ bool ZepWindow::DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const
     static const auto blankSpace = ' ';
 
     auto activeWindow = (GetEditor().GetActiveTabWindow()->GetActiveWindow() == this);
-
     auto cursorCL = BufferToDisplay();
+
+    auto bufferCursorInside = [&](long offset) 
+    {
+        if (offset < lineInfo.columnOffsets.x)
+            return false;
+
+        // Inside the line
+        if (offset < lineInfo.columnOffsets.y)
+            return true;
+
+        // On the last line or an empty line
+        /*if (offset == lineInfo.columnOffsets.y &&
+            offset == m_pBuffer->GetText().size())
+            return true;
+            */
+
+        return false;
+    };
 
     // Draw line numbers
     auto showLineNumber = [&]()
@@ -452,11 +463,12 @@ bool ZepWindow::DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const
         if (cursorCL.x == -1)
             return;
 
+        // Vim mode currently shows relative line numbers, because it's more useful
         auto cursorBufferLine = GetCursorLineInfo(cursorCL.y).bufferLineNumber;
         std::string strNum;
         if (displayMode == DisplayMode::Vim)
         {
-            strNum = std::to_string(abs(lineInfo.bufferLineNumber - cursorBufferLine));
+            strNum = std::to_string(std::abs(lineInfo.bufferLineNumber - cursorBufferLine));
         }
         else
         {
@@ -469,8 +481,9 @@ bool ZepWindow::DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const
             NVec2f(m_leftRegion.bottomRightPx.x, lineInfo.screenPosYPx + display.GetFontSize()),
             0xFF222222);
 
+        // Change the color of the line number if it is the current line
         auto digitCol = 0xFF11FF11;
-        if (lineInfo.BufferCursorInside(m_bufferCursor))
+        if (bufferCursorInside(m_bufferCursor))
         {
             digitCol = Color_CursorNormal;
         }
@@ -498,7 +511,9 @@ bool ZepWindow::DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const
     {
         auto pSyntax = m_pBuffer->GetSyntax();
         auto col = pSyntax != nullptr ? Theme::Instance().GetColor(pSyntax->GetSyntaxAt(ch)) : 0xFFFFFFFF;
-        auto* pCh = &m_pBuffer->GetText()[ch];
+        const utf8* pCh = nullptr;
+        pCh = &m_pBuffer->GetText()[ch];
+
         auto bufferLocation = ch;
 
         // Visible white space
@@ -543,7 +558,7 @@ bool ZepWindow::DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const
                     }
                 }
 
-                if (lineInfo.BufferCursorInside(m_bufferCursor))
+                if (bufferCursorInside(m_bufferCursor))
                 {
                     if (m_bufferCursor == ch)
                     {

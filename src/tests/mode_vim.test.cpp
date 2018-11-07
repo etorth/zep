@@ -245,7 +245,7 @@ COMMAND_TEST(delete_cw_inside_2, "one two three", "llllllllcwabc", "one two abc"
 COMMAND_TEST(delete_cW, "one two! three", "llllcWabc", "one abc three");
 
 // paste
-COMMAND_TEST(paste_p_at_end_cr, "(one) two three\r\n", "vllllxlllllllllllljp", " two three\n(one)"); // Will replace \r
+COMMAND_TEST(paste_p_at_end_cr, "(one) two three\r\n", "vllllxlllllllllllljp", " two three(one)\n"); // Will replace \r
 COMMAND_TEST(paste_p_at_end, "(one) two three", "vllllxllllllllllllp", " two three(one)");
 COMMAND_TEST(paste_P_at_end, "(one) two three", "vllllxllllllllllllP", " two thre(one)e");
 COMMAND_TEST(paste_P_middle, "(one) two three", "llllllvlylp", "(one) twtwo three");
@@ -359,3 +359,5 @@ CURSOR_TEST(motion_ge_startspace, "one! two three", "wwjge", 3, 0);
 CURSOR_TEST(motion_0, "one two", "llll0", 0, 0);
 CURSOR_TEST(motion_gg, "one two", "llllgg", 0, 0);
 CURSOR_TEST(motion_dollar, "one two", "ll$", 6, 0);
+
+CURSOR_TEST(motion_append_on_empty_line, "\n", "A", 0, 0);

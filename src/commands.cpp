@@ -9,14 +9,14 @@ ZepCommand_DeleteRange::ZepCommand_DeleteRange(ZepBuffer& buffer, const BufferLo
     m_startOffset(start),
     m_endOffset(end)
 {
-    // We never allow deletion of the '0' at the end of the buffer
+    // No range - this will kill the operation at the Redo
     if (buffer.GetText().empty())
     {
         m_endOffset = m_startOffset;
     }
     else
     {
-        m_endOffset = std::min(m_endOffset, long(buffer.GetText().size()) - 1l);
+        m_endOffset = std::min(m_endOffset, long(buffer.GetText().size()));
     }
 }
 
@@ -44,7 +44,6 @@ ZepCommand_Insert::ZepCommand_Insert(ZepBuffer& buffer, const BufferLocation& st
     m_startOffset(start),
     m_strInsert(str)
 {
-    m_startOffset = buffer.Clamp(m_startOffset);
 }
 
 void ZepCommand_Insert::Redo()

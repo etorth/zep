@@ -51,6 +51,7 @@ MainWindow::MainWindow()
     else
     {
         ZepBuffer* pBuffer = pWidget->GetEditor().AddBuffer("shader.vert");
+        //pBuffer->SetText("");// shader.c_str());
         pBuffer->SetText(shader.c_str());
     }
 

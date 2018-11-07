@@ -34,6 +34,8 @@ ZepEditor::ZepEditor(uint32_t flags)
     : m_flags(flags)
     , m_spCursorTimer(new Timer())
 {
+    SetCommandText("");
+
     RegisterMode(VimMode, std::make_shared<ZepMode_Vim>(*this));
     RegisterMode(StandardMode, std::make_shared<ZepMode_Standard>(*this));
     SetMode(VimMode);
