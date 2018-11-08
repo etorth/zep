@@ -448,12 +448,6 @@ bool ZepWindow::DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const
         if (offset < lineInfo.columnOffsets.y)
             return true;
 
-        // On the last line or an empty line
-        /*if (offset == lineInfo.columnOffsets.y &&
-            offset == m_pBuffer->GetText().size())
-            return true;
-            */
-
         return false;
     };
 
@@ -507,12 +501,22 @@ bool ZepWindow::DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const
     bool foundCursor = false;
 
     // Walk from the start of the line to the end of the line (in buffer chars)
-    for (auto ch = lineInfo.columnOffsets.x; ch < lineInfo.columnOffsets.y; ch++)
+    for (auto ch = lineInfo.columnOffsets.x; ch <= lineInfo.columnOffsets.y; ch++)
     {
         auto pSyntax = m_pBuffer->GetSyntax();
         auto col = pSyntax != nullptr ? Theme::Instance().GetColor(pSyntax->GetSyntaxAt(ch)) : 0xFFFFFFFF;
         const utf8* pCh = nullptr;
-        pCh = &m_pBuffer->GetText()[ch];
+        bool outsideLineChars = (ch == lineInfo.columnOffsets.y);
+
+        // We walk beyond the end in order to show the cursor, but just fill a dummy char :)
+        if (!outsideLineChars)
+        {
+            pCh = &m_pBuffer->GetText()[ch];
+        }
+        else
+        {
+            pCh = (const utf8*)&blankSpace;
+        }
 
         auto bufferLocation = ch;
 
@@ -549,7 +553,7 @@ bool ZepWindow::DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const
         {
             if (activeWindow)
             {
-                if (cursorMode == CursorMode::Visual)
+                if (cursorMode == CursorMode::Visual && !outsideLineChars)
                 {
                     if (bufferLocation >= selection.start &&
                         bufferLocation <= selection.end)
@@ -593,16 +597,20 @@ bool ZepWindow::DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const
         }
         else
         {
-            if (pSyntax && pSyntax->GetSyntaxAt(ch) == SyntaxType::Whitespace)
+            // TODO: seperate function to draw cursor?
+            if (!outsideLineChars)
             {
-                auto centerChar = NVec2f(screenPosX + textSize.x / 2, lineInfo.screenPosYPx + textSize.y / 2);
-                display.DrawRectFilled(centerChar - NVec2f(1.0f, 1.0f), centerChar + NVec2f(1.0f, 1.0f), 0xFF524814);
-            }
-            else
-            {
-                display.DrawChars(NVec2f(screenPosX, lineInfo.screenPosYPx), col,
-                    pCh,
-                    pEnd);
+                if (pSyntax && pSyntax->GetSyntaxAt(ch) == SyntaxType::Whitespace)
+                {
+                    auto centerChar = NVec2f(screenPosX + textSize.x / 2, lineInfo.screenPosYPx + textSize.y / 2);
+                    display.DrawRectFilled(centerChar - NVec2f(1.0f, 1.0f), centerChar + NVec2f(1.0f, 1.0f), 0xFF524814);
+                }
+                else
+                {
+                    display.DrawChars(NVec2f(screenPosX, lineInfo.screenPosYPx), col,
+                        pCh,
+                        pEnd);
+                }
             }
         }
 
