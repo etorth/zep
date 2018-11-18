@@ -962,7 +962,7 @@ bool ZepMode_Vim::GetCommand(CommandContext& context)
     else if (context.command == "A")
     {
         // Cursor append to end of line
-        GetCurrentWindow()->MoveCursorInsideLine(LineLocation::BeyondLineEnd);
+        GetCurrentWindow()->MoveCursorInsideLine(LineLocation::LineCRBegin);
         context.commandResult.modeSwitch = EditorMode::Insert;
         return true;
     }
