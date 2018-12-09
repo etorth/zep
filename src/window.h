@@ -57,7 +57,7 @@ enum
 // Window shows a buffer, and is parented by a TabWindow
 // The buffer can change, but the window must always have an active buffer
 // Editor operations such as select and change are local to a displayed pane
-class ZepWindow : public ZepWindowBase
+class ZepWindow : public ZepComponent
 {
 public:
     ZepWindow(ZepTabWindow& window, ZepBuffer* buffer);
@@ -84,31 +84,31 @@ public:
     void Display(ZepDisplay& display);
     bool DisplayLine(ZepDisplay& display, const LineInfo& lineInfo, const DisplayRegion& region, int displayPass);
 
-    void SetWindowFlags(uint32_t windowFlags)
-    {
-        m_windowFlags = windowFlags;
-    }
-    uint32_t GetWindowFlags() const
-    {
-        return m_windowFlags;
-    }
+    void MoveCursorWindowRelative(int yDistance, LineLocation clampLocation = LineLocation::LineLastNonCR);
+    BufferLocation GetBufferCursor() const;
+    void SetBufferCursor(BufferLocation location);
 
-    long GetMaxDisplayLines() const
-    {
-        return m_maxDisplayLines;
-    }
+    NVec2i BufferToDisplay(const BufferLocation& location) const;
+    NVec2i BufferToDisplay() const;
 
-    void UpdateVisibleLineData();
+    void SetWindowFlags(uint32_t windowFlags);
+    uint32_t GetWindowFlags() const;
+    long GetMaxDisplayLines() const;
+
+    void UpdateVisibleLineData(ZepDisplay& display);
     void UpdateScreenLines();
-    long VisibleLineCount() const
-    {
-        return visibleLineRange.y - visibleLineRange.x;
-    }
+    long VisibleLineCount() const;
     const LineInfo& GetCursorLineInfo(long y) const;
 
     void ScrollToCursor();
 
-public:
+
+    void SetSelectionRange(BufferLocation start, BufferLocation end);
+
+    ZepBuffer& GetBuffer() const;
+    void SetBuffer(ZepBuffer* pBuffer);
+
+private:
     // TODO: Fix this; used to be a struct, now members
     // Should be private!
     DisplayRegion m_bufferRegion; // region of the display we are showing on.
@@ -128,7 +128,6 @@ public:
 
     NVec2i visibleLineRange = { 0, 0 }; // Offset of the displayed area into the text
     std::vector<LineInfo> windowLines; // Information about the currently displayed lines
-    bool m_pendingLineUpdate = true;
     bool m_linesFillScreen = false;
 
     ZepTabWindow& m_tabWindow;
@@ -138,8 +137,11 @@ public:
     long m_maxDisplayLines = 0;
     float m_defaultLineSize = 0;
 
-private:
     BufferLocation m_bufferCursor{ 0 }; // Location in buffer coordinates.  Each window has a different buffer cursor
+    long lastCursorC = 0; // The last cursor column (could be removed and recalculated)
+
+    ZepBuffer* m_pBuffer = nullptr;
+    Region selection; // Selection area
 };
 
 } // namespace Zep

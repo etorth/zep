@@ -72,6 +72,7 @@ public:
     BufferLocation GetLinePos(BufferLocation bufferLocation, LineLocation lineLocation) const;
     bool GetLineOffsets(const long line, long& charStart, long& charEnd) const;
     BufferLocation Clamp(BufferLocation location) const;
+    long GetBufferColumn(BufferLocation location) const;
 
     ThreadPool& GetThreadPool() { return m_threadPool; }
 

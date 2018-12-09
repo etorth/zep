@@ -57,6 +57,12 @@ void ZepBuffer::Notify(std::shared_ptr<ZepMessage> message)
 {
 }
 
+long ZepBuffer::GetBufferColumn(BufferLocation location) const
+{
+    auto lineStart = GetLinePos(location, LineLocation::LineBegin);
+    return location - lineStart;
+}
+
 BufferLocation ZepBuffer::LocationFromOffsetByChars(const BufferLocation& location, long offset) const
 {
     // Walk and find.
@@ -741,5 +747,6 @@ BufferLocation ZepBuffer::EndLocation() const
     auto end = m_gapBuffer.size() - 1;
     return LocationFromOffset(long(end));
 }
+
 
 } // namespace Zep

@@ -39,7 +39,7 @@ public:
         pTabWindow = spEditor->GetActiveTabWindow();
         pWindow = spEditor->GetActiveTabWindow()->GetActiveWindow();
 
-        pWindow->MoveCursorTo(0);
+        pWindow->SetBufferCursor(0);
     }
 
     ~VimTest()
